@@ -1,12 +1,13 @@
 import { useAccount } from "wagmi";
-import { useWallet } from "./hooks/useWallet";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import "./App.css";
 import ConnectButton from "./ui/ConnectButton";
 import ConnectedAddress from "./ui/ConnectedAddress";
 
 function App() {
-  const { connectMetaMask, isLoading } = useWallet();
   const { address, isConnected } = useAccount();
+  const [isOpen, setIsOpen] = useState(false);
 
   const therapyOptions = [
     { title: "User", description: "Register as User" },
@@ -41,23 +42,40 @@ function App() {
       </nav>
 
       <main className="container mx-auto px-4 py-12">
-        <h2 className="text-3xl font-bold text-center text-text mb-12">
-          Choose Your Therapy Type
-        </h2>
+        <motion.button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:scale-105 transition-transform border-2"
+        >
+          {isOpen ? "Close" : "Register"}
+        </motion.button>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {therapyOptions.map((option) => (
-            <div
-              key={option.title}
-              className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform cursor-pointer"
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8"
             >
-              <h3 className="text-2xl font-semibold text-primary mb-4">
-                {option.title}
-              </h3>
-              <p className="text-text/80">{option.description}</p>
-            </div>
-          ))}
-        </div>
+              <motion.h2 layout>What brings you here?</motion.h2>
+              {therapyOptions.map((option, index) => (
+                <motion.div
+                  key={option.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                  className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform cursor-pointer"
+                >
+                  <h3 className="text-2xl font-semibold text-primary mb-4">
+                    {option.title}
+                  </h3>
+                  <p className="text-text/80">{option.description}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
