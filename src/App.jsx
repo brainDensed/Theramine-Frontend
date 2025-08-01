@@ -3,11 +3,12 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import "./App.css";
 import ConnectButton from "./ui/ConnectButton";
-import ConnectedAddress from "./ui/ConnectedAddress";
+import Therapists from "./ui/Therapists";
+import ChatRoom from "./ui/ChatRoom";
 
 function App() {
-  const { address, isConnected } = useAccount();
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedTherapist, setSelectedTherapist] = useState("");
 
   const therapyOptions = [
     { title: "User", description: "Register as User" },
@@ -32,11 +33,7 @@ function App() {
           </div>
 
           <div className="flex items-center space-x-4">
-            {!isConnected ? (
-              <ConnectButton />
-            ) : (
-              <ConnectedAddress address={address} />
-            )}
+            <ConnectButton />
           </div>
         </div>
       </nav>
@@ -76,6 +73,13 @@ function App() {
             </motion.div>
           )}
         </AnimatePresence>
+        <Therapists setSelectedTherapist={setSelectedTherapist} />
+        {selectedTherapist && (
+          <ChatRoom
+            roomId={`room-${selectedTherapist}`}
+            username={"Anonymous"}
+          />
+        )}
       </main>
     </div>
   );
