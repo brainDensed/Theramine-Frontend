@@ -1,22 +1,25 @@
 // ui/ChatRoom.jsx
 import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import io from "socket.io-client";
 
 const socket = io("http://localhost:3001"); // Replace with your backend URL
 
-function ChatRoom({ roomId, username }) {
+function ChatRoom() {
+  const { therapistId } = useParams();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  
 
   useEffect(() => {
-    socket.emit("join_room", roomId);
+    socket.emit("join_room", therapistId);
 
     socket.on("receive_message", (data) => {
       setMessages((prev) => [...prev, data]);
     });
 
     return () => socket.disconnect();
-  }, [roomId]);
+  }, [therapistId]);
 
   const sendMessage = () => {
     if (message.trim()) {

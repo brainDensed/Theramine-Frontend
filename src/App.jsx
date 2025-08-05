@@ -1,27 +1,36 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from 'react-router';
+import { useEffect } from "react";
 import "./App.css";
 import ConnectButton from "./ui/ConnectButton";
-import Therapists from "./ui/Therapists";
-import ChatRoom from "./ui/ChatRoom";
 import { RegisterUser } from "./lib/actions/RegisterUser";
+import { useIdentityStore } from './lib/store/identityStore';
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedTherapist, setSelectedTherapist] = useState("");
+  const navigate = useNavigate();
+  const setIdentity = useIdentityStore(state => state.setIdentity);
+  const commitment = useIdentityStore(state => state.commitment);
 
-  const handleRegister = async () => {
+  useEffect(() => {
+    if (commitment) {
+      navigate('/therapists', { replace: true });
+    }
+  }, [commitment, navigate]);
+  const handleRegister = async (role) => {
     const result = await RegisterUser();
     if (result.success) {
-      console.log("✅ Commitment:", result.commitment);
+      setIdentity(result.identity, result.commitment, role);
+      navigate('/therapists');
     } else {
       console.log("❌ Error:", result.error);
     }
   };
 
   const therapyOptions = [
-    { title: "User", description: "Register as User" },
-    { title: "Therapist", description: "Register as Therapist" },
+    { title: "User", description: "Register as User", role: "User" },
+    { title: "Therapist", description: "Register as Therapist", role: "Therapist" },
   ];
 
   return (
@@ -72,7 +81,7 @@ function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.3 }}
                   className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform cursor-pointer"
-                  onClick={handleRegister}
+                  onClick={() => handleRegister(option.role)}
                 >
                   <h3 className="text-2xl font-semibold text-primary mb-4">
                     {option.title}
@@ -83,13 +92,6 @@ function App() {
             </motion.div>
           )}
         </AnimatePresence>
-        <Therapists setSelectedTherapist={setSelectedTherapist} />
-        {selectedTherapist && (
-          <ChatRoom
-            roomId={`room-${selectedTherapist}`}
-            username={"Anonymous"}
-          />
-        )}
       </main>
     </div>
   );
