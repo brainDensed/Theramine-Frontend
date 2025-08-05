@@ -1,14 +1,23 @@
-import { useAccount } from "wagmi";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import "./App.css";
 import ConnectButton from "./ui/ConnectButton";
 import Therapists from "./ui/Therapists";
 import ChatRoom from "./ui/ChatRoom";
+import { RegisterUser } from "./lib/actions/RegisterUser";
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState("");
+
+  const handleRegister = async () => {
+    const result = await RegisterUser();
+    if (result.success) {
+      console.log("✅ Commitment:", result.commitment);
+    } else {
+      console.log("❌ Error:", result.error);
+    }
+  };
 
   const therapyOptions = [
     { title: "User", description: "Register as User" },
@@ -63,6 +72,7 @@ function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.3 }}
                   className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform cursor-pointer"
+                  onClick={handleRegister}
                 >
                   <h3 className="text-2xl font-semibold text-primary mb-4">
                     {option.title}
