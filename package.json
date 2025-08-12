@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@radix-ui/themes": "^3.2.1",
+    "@semaphore-protocol/data": "^4.13.0-beta.1",
+    "@semaphore-protocol/group": "^4.13.0-beta.1",
     "@semaphore-protocol/identity": "^4.13.0-beta.1",
+    "@semaphore-protocol/proof": "^4.13.0-beta.1",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.83.0",
     "motion": "^12.23.9",

@@ -7,7 +7,7 @@ import { config } from "./config/config.js";
 import "./index.css";
 import "@radix-ui/themes/styles.css";
 import { ThemeProvider } from "./config/ThemeContext.jsx";
-import { router } from "./config/RoutesConfig.js";
+import { router } from "./config/RoutesConfig.jsx";
 
 const queryClient = new QueryClient();
 

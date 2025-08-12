@@ -1,8 +1,7 @@
-import { JSX } from 'react';
 import { useIdentityStore } from '../lib/store/identityStore'
 import { Navigate } from 'react-router';
 
-export default function PrivateRoute({ children }: { children: JSX.Element }) {
+export default function PrivateRoute({ children }) {
   const { commitment } = useIdentityStore()
 
   if (!commitment) {

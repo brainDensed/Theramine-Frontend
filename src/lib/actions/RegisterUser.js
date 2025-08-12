@@ -6,12 +6,7 @@ import {
 } from "../contracts/TheramineRegistry";
 import { config } from "../../config/config";
 
-export async function RegisterUser(): Promise<{
-  success: boolean;
-  identity?: Identity;
-  commitment?: string;
-  error?: string;
-}> {
+export async function RegisterUser() {
   try {
     const walletClient = await getWalletClient(config);
     const address = getAccount(config);
