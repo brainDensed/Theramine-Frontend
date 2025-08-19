@@ -1,40 +1,44 @@
+import { useSocket } from "../context/SocketContext";
+import { useAccount } from "wagmi";
 import { useNavigate } from "react-router";
-import { useIdentityStore } from "../lib/store/identityStore";
-import { requestTherapySession } from "../lib/actions/requestTherapySession";
-import { usePublicClient } from "wagmi";
+import { useState } from "react";
+import SessionRequestPopup from "./SessionRequestPopup";
 
 const Therapists = () => {
-  const publicClient = usePublicClient();
+  const { socket } = useSocket();
+  const { address } = useAccount();
   const navigate = useNavigate();
-  const commitment = useIdentityStore((state) => state.commitment);
-  const identity = useIdentityStore((state) => state.identity);
+
   const list = [
     {
       id: 1,
       name: "Test Account",
-      address: "0x22B5fd86AA1eaB897294eF94B166e85105B708C6",
+      address: "0x100b564Cce2DBdc5dc6D84Fa43c466601473DB1C",
     },
+    {
+      id: 2,
+      name: "Edge Account",
+      address: "0x419863485eb5057BF1B1a54C54d990f452551d5f",
+    },
+    {
+      id: 3,
+      name: "Chrome Account",
+      address: "0x58a7857870919c6F3153B0A2e55AB0D7A603fF8C",
+    }
   ];
 
-  console.log("commitment", commitment);
-  console.log("identity", identity);
-  console.log("typeof identity", typeof identity);
-
-  const handleRequestSession = async (therapist) => {
-    try {
-      const response = await requestTherapySession({
-        therapist: therapist.address,
-      }, publicClient);
-
-      if (response.success) {
-        const { sessionId } = response;
-        console.log("Session requested successfully:", sessionId);
-        navigate(`/chat/${therapist.name}`);
-      } else {
-        console.error("Failed to request session:", response.error);
-      }
-    } catch (err) {
-      console.error("Error requesting session:", err);
+  const handleRequestSession = (therapist) => {
+    if (socket?.readyState === 1) {
+      socket.send(
+        JSON.stringify({
+          type: "appoinment",
+          userId: address,
+          therapistId: therapist.address,
+          message: "appoinment_request",
+          time: Date.now(),
+        })
+      );
+      alert("Request sent! Waiting for therapist to confirm...");
     }
   };
 
@@ -45,18 +49,22 @@ const Therapists = () => {
         {list.map((therapist) => (
           <div
             key={therapist.id}
-            className="bg-accent/30 border border-primary/20 rounded-xl p-6 cursor-pointer hover:transform hover:scale-105 transition-transform"
-            onClick={() => handleRequestSession(therapist)}
+            className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform"
           >
             <h3 className="text-xl font-semibold text-primary">
               {therapist.name}
             </h3>
-            <button>
+            <button
+              onClick={() => handleRequestSession(therapist)}
+              className="mt-3 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
               Request Session
             </button>
           </div>
         ))}
       </div>
+
+      <SessionRequestPopup />
     </div>
   );
 };

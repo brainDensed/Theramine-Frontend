@@ -1,31 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useNavigate } from 'react-router';
-import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useAccount } from "wagmi";
 import "./App.css";
-import ConnectButton from "./ui/ConnectButton";
-import { RegisterUser } from "./lib/actions/RegisterUser";
-import { useIdentityStore } from './lib/store/identityStore';
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const setIdentity = useIdentityStore(state => state.setIdentity);
-  const commitment = useIdentityStore(state => state.commitment);
+
+  const { isConnected } = useAccount(); // 👈 check wallet connection
 
   useEffect(() => {
-    if (commitment) {
-      navigate('/therapists', { replace: true });
+    if (isConnected) {
+      navigate("/therapists", { replace: true });
     }
-  }, [commitment, navigate]);
+  }, [isConnected, navigate]);
+
   const handleRegister = async (role) => {
-    const result = await RegisterUser();
-    if (result.success) {
-      setIdentity(result.identity, result.commitment, role);
-      navigate('/therapists');
-    } else {
-      console.log("❌ Error:", result.error);
-    }
+    navigate("/therapists");
   };
 
   const therapyOptions = [
@@ -35,27 +27,6 @@ function App() {
 
   return (
     <div className="min-h-screen">
-      {/* Navbar */}
-      <nav className="glass-navbar w-full px-6 py-4 shadow-lg">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h1
-              className="text-3xl font-bold"
-              style={{ color: "var(--color-primary)" }}
-            >
-              Theramine
-            </h1>
-            <span className="hidden md:block text-sm pl-4 ml-4 border-l border-white/20 text-white/60">
-              Blockchain Therapy Platform
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <ConnectButton />
-          </div>
-        </div>
-      </nav>
-
       <main className="container mx-auto px-4 py-12">
         <motion.button
           onClick={() => setIsOpen((prev) => !prev)}

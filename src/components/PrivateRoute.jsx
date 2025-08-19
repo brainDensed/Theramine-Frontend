@@ -1,11 +1,11 @@
-import { useIdentityStore } from '../lib/store/identityStore'
-import { Navigate } from 'react-router';
+import { useAccount } from 'wagmi'
+import { Navigate } from 'react-router'
 
 export default function PrivateRoute({ children }) {
-  const { commitment } = useIdentityStore()
+  const { isConnected } = useAccount() // wagmi hook for wallet connection status
 
-  if (!commitment) {
-    // Not logged in → redirect to homepage or login
+  if (!isConnected) {
+    // Wallet not connected → redirect to homepage
     return <Navigate to="/" replace />
   }
 
