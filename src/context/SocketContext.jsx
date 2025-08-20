@@ -15,7 +15,7 @@ function SocketProvider({ children }) {
     const ws = new WebSocket("ws://localhost:8080")
 
     ws.onopen = () => {
-      console.log("✅ WebSocket connected")
+      console.log("✅ WebSocket connected");
     }
 
     ws.onmessage = (event) => {

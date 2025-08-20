@@ -1,13 +1,10 @@
 import { useSocket } from "../context/SocketContext";
 import { useAccount } from "wagmi";
-import { useNavigate } from "react-router";
-import { useState } from "react";
 import SessionRequestPopup from "./SessionRequestPopup";
 
 const Therapists = () => {
   const { socket } = useSocket();
   const { address } = useAccount();
-  const navigate = useNavigate();
 
   const list = [
     {

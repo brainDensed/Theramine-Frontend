@@ -1,5 +1,6 @@
 import { useConnect, useAccount, useDisconnect } from "wagmi";
 import { useSocket } from "../context/SocketContext";
+import { useEffect } from "react";
 
 function ConnectButton() {
   const { address, isConnected } = useAccount();
@@ -8,6 +9,19 @@ function ConnectButton() {
   const { socket } = useSocket(); // 👈 socket is already managed in context
 
   const injectedConnector = connectors.find((c) => c.id === "injected");
+
+  useEffect(() => {
+    if (isConnected && socket?.readyState === 1) {
+      socket.send(
+        JSON.stringify({
+          type: "appoinment",
+          userId: address,
+          message: "connection",
+          time: Date.now(),
+        })
+      );
+    }
+  }, [isConnected, socket?.readyState, address]);
 
   return (
     <>
