@@ -1,6 +1,7 @@
 import { useConnect, useAccount, useDisconnect } from "wagmi";
 import { useSocket } from "../context/SocketContext";
 import { useEffect } from "react";
+import { List } from "../assets/Accounts.";
 
 function ConnectButton() {
   const { address, isConnected } = useAccount();
@@ -14,9 +15,9 @@ function ConnectButton() {
     if (isConnected && socket?.readyState === 1) {
       socket.send(
         JSON.stringify({
-          type: "appoinment",
-          userId: address,
+          type: "connection",
           message: "connection",
+          ...(List.some((account) => account.address === address) ? { therapistId: address } : { userId: address }),
           time: Date.now(),
         })
       );
