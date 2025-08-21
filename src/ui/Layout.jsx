@@ -1,29 +1,18 @@
-import { Outlet } from "react-router";
+import { Outlet, useNavigate } from "react-router";
 import ConnectButton from "./ConnectButton";
 import { useSocket } from "../context/SocketContext";
 import SessionRequestPopup from "./SessionRequestPopup";
+import { useEffect } from "react";
 
 export default function Layout() {
-  const { appointmentRequest, setAppointmentRequest, socket } = useSocket();
-
-  const handleDecision = (accepted) => {
-    if (!appointmentRequest) return;
-
-    if (accepted) {
-      socket?.send(
-        JSON.stringify({
-          type: "appoinment_fixed",
-          userId: appointmentRequest.userId,
-          therapistId: appointmentRequest.therapistId,
-          roomId: `${appointmentRequest.userId}-${appointmentRequest.therapistId}`,
-          time: Date.now(),
-        })
-      );
-      navigate(`/chat/${appointmentRequest.roomId}`);
+  const {acceptedRequest} = useSocket();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (acceptedRequest) {
+      // Navigate to the chat room or perform any other action
+      navigate(`/chat/${acceptedRequest.roomId}`);
     }
-
-    setAppointmentRequest(null); // close popup
-  };
+  }, [acceptedRequest]);
 
   return (
     <div className="min-h-screen">

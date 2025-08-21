@@ -7,6 +7,7 @@ function SocketProvider({ children }) {
   const { address } = useAccount()
   const [socket, setSocket] = useState(null)
   const [pendingRequest, setPendingRequest] = useState(null)
+  const [acceptedRequest, setAcceptedRequest] = useState(null)
   const [messages, setMessages] = useState([])
 
   useEffect(() => {
@@ -25,6 +26,13 @@ function SocketProvider({ children }) {
       // appointment request
       if (data.message === "appoinment_request" && data.therapistId === address) {
         setPendingRequest(data)
+      }
+
+      if (data.message === "appoinment_fixed") {
+        // Check if current user is either the therapist or user involved
+        if (address === data.therapistId || address === data.userId) {
+          setAcceptedRequest(data);
+        }
       }
 
       // chat message
@@ -49,7 +57,7 @@ function SocketProvider({ children }) {
   }, [address])
 
   return (
-    <SocketContext.Provider value={{ socket, pendingRequest, setPendingRequest, messages }}>
+    <SocketContext.Provider value={{ socket, pendingRequest, setPendingRequest, acceptedRequest, messages }}>
       {children}
     </SocketContext.Provider>
   )

@@ -7,8 +7,6 @@ const Therapists = () => {
   const { socket } = useSocket();
   const { address } = useAccount();
 
-
-
   const handleRequestSession = (therapist) => {
     if (socket?.readyState === 1) {
       socket.send(
