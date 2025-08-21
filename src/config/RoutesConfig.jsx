@@ -11,7 +11,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <App /> },
       { path: "/therapists", element: <PrivateRoute><Therapists /></PrivateRoute> },
-      { path: "/chat/:therapistId", element: <PrivateRoute><ChatComponent /></PrivateRoute> },
+      { path: "/chat/:roomId", element: <PrivateRoute><ChatComponent /></PrivateRoute> },
     ],
   },
 ]);

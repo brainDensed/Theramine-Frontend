@@ -1,31 +1,34 @@
-import { createContext, useContext, useEffect, useState } from "react"
-import { useAccount } from "wagmi"
+import { createContext, useContext, useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 
-const SocketContext = createContext()
+const SocketContext = createContext();
 
 function SocketProvider({ children }) {
-  const { address } = useAccount()
-  const [socket, setSocket] = useState(null)
-  const [pendingRequest, setPendingRequest] = useState(null)
-  const [acceptedRequest, setAcceptedRequest] = useState(null)
-  const [messages, setMessages] = useState([])
+  const { address } = useAccount();
+  const [socket, setSocket] = useState(null);
+  const [pendingRequest, setPendingRequest] = useState(null);
+  const [acceptedRequest, setAcceptedRequest] = useState(null);
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    if (!address) return
+    if (!address) return;
 
-    const ws = new WebSocket("ws://localhost:8080")
+    const ws = new WebSocket("ws://localhost:8080");
 
     ws.onopen = () => {
       console.log("✅ WebSocket connected");
-    }
+    };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      console.log("📩 Incoming:", data)
+      const data = JSON.parse(event.data);
+      console.log("📩 Incoming:", data);
 
       // appointment request
-      if (data.message === "appoinment_request" && data.therapistId === address) {
-        setPendingRequest(data)
+      if (
+        data.message === "appoinment_request" &&
+        data.therapistId === address
+      ) {
+        setPendingRequest(data);
       }
 
       if (data.message === "appoinment_fixed") {
@@ -36,37 +39,53 @@ function SocketProvider({ children }) {
       }
 
       // chat message
-      if (data.type === "chat_message") {
-        setMessages((prev) => [...prev, data])
+      if (data.type === "chat") {
+        const msg = {
+          message: data.message,
+          sender: data.userId !== address ? data.userId : data.therapistId,
+          time: data.time,
+          type: "chat",
+        };
+
+        setMessages((prev) => [...prev, msg]);
       }
-    }
+    };
 
     ws.onclose = () => {
-      console.log("❌ WebSocket disconnected")
-    }
+      console.log("❌ WebSocket disconnected");
+    };
 
     ws.onerror = (err) => {
-      console.error("⚠️ WebSocket error:", err)
-    }
+      console.error("⚠️ WebSocket error:", err);
+    };
 
-    setSocket(ws)
+    setSocket(ws);
 
     return () => {
-      ws.close()
-    }
-  }, [address])
+      ws.close();
+    };
+  }, [address]);
 
   return (
-    <SocketContext.Provider value={{ socket, pendingRequest, setPendingRequest, acceptedRequest, messages }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        pendingRequest,
+        setPendingRequest,
+        acceptedRequest,
+        messages,
+        setMessages,
+      }}
+    >
       {children}
     </SocketContext.Provider>
-  )
+  );
 }
 
 function useSocket() {
-  return useContext(SocketContext)
+  return useContext(SocketContext);
 }
 
 // ✅ Default export the Provider, named export the hook
-export default SocketProvider
-export { useSocket }
+export default SocketProvider;
+export { useSocket };

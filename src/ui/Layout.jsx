@@ -5,12 +5,17 @@ import SessionRequestPopup from "./SessionRequestPopup";
 import { useEffect } from "react";
 
 export default function Layout() {
-  const {acceptedRequest} = useSocket();
+  const { acceptedRequest } = useSocket();
   const navigate = useNavigate();
   useEffect(() => {
     if (acceptedRequest) {
       // Navigate to the chat room or perform any other action
-      navigate(`/chat/${acceptedRequest.roomId}`);
+      navigate(`/chat/${acceptedRequest.roomId}`, {
+        state: {
+          therapistId: acceptedRequest.therapistId,
+          userId: acceptedRequest.userId,
+        },
+      });
     }
   }, [acceptedRequest]);
 
