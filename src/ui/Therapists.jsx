@@ -2,6 +2,7 @@ import { useSocket } from "../context/SocketContext";
 import { useAccount } from "wagmi";
 import SessionRequestPopup from "./SessionRequestPopup";
 import { List } from "../assets/Accounts.";
+import { motion } from "motion/react";
 
 const Therapists = () => {
   const { socket } = useSocket();
@@ -34,12 +35,17 @@ const Therapists = () => {
             <h3 className="text-xl font-semibold text-primary">
               {therapist.name}
             </h3>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => handleRequestSession(therapist)}
-              className="mt-3 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              className="mt-3 px-5 py-2.5 rounded-xl font-semibold text-black
+             bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]
+             shadow-lg backdrop-blur-md
+             hover:shadow-xl transition"
             >
               Request Session
-            </button>
+            </motion.button>
           </div>
         ))}
       </div>
