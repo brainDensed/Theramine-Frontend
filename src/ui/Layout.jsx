@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate, useLocation } from "react-router";
 import ConnectButton from "./ConnectButton";
 import { useSocket } from "../context/SocketContext";
 import SessionRequestPopup from "./SessionRequestPopup";
@@ -7,6 +7,11 @@ import { useEffect } from "react";
 export default function Layout() {
   const { acceptedRequest } = useSocket();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if current route is a chat route
+  const isChatRoute = location.pathname.startsWith("/chat/");
+
   useEffect(() => {
     if (acceptedRequest) {
       // Navigate to the chat room or perform any other action
@@ -20,9 +25,12 @@ export default function Layout() {
   }, [acceptedRequest]);
 
   return (
-    <div className="min-h-screen">
-      <nav className="glass-navbar w-full px-6 py-4 shadow-lg">
-        <div className="container mx-auto flex items-center justify-between">
+    <div className="min-h-screen overflow-hidden">
+      <nav
+        className="glass-navbar w-full px-6 py-4 shadow-lg fixed top-0 left-0 right-0 z-50"
+        style={{ height: "80px" }}
+      >
+        <div className="container mx-auto flex items-center justify-between h-full">
           <div className="flex items-center space-x-2">
             <h1
               className="text-3xl font-bold"
@@ -41,7 +49,13 @@ export default function Layout() {
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-12">
+      <main
+        className={`${
+          isChatRoute
+            ? "pt-20 h-[calc(100vh-80px)]"
+            : "container mx-auto px-4 py-12 pt-32"
+        }`}
+      >
         <Outlet />
       </main>
 
