@@ -2,16 +2,16 @@ export const List = [
   {
     id: 1,
     name: "Test Account",
-    address: "0x100b564Cce2DBdc5dc6D84Fa43c466601473DB1C",
+    address: "0xbF9243289CB75d64cc4ac7439FBfFDb9BD67BaB1",
   },
   {
     id: 2,
     name: "Edge Account",
-    address: "0x419863485eb5057BF1B1a54C54d990f452551d5f",
+    address: "0xa1f6bC8A0D0CDD4DFc315d4620F23214d4fc4cB1",
   },
   {
     id: 3,
     name: "Chrome Account",
-    address: "0x58a7857870919c6F3153B0A2e55AB0D7A603fF8C",
+    address: "0xb1025A348ad8Ef76E8728Ea7eB6c48F5062daeD4",
   },
 ];

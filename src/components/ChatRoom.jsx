@@ -3,6 +3,7 @@ import { useAccount } from "wagmi";
 import { useSocket } from "../context/SocketContext";
 import { useLocation, useParams } from "react-router";
 import { motion } from "framer-motion";
+import { useIPFSChat } from "../hooks/useIPFSChat";
 
 function ChatComponent() {
   const { address } = useAccount();
@@ -10,11 +11,32 @@ function ChatComponent() {
   const { roomId } = useParams();
   const location = useLocation();
   const [input, setInput] = useState("");
+  const [lastSavedHash, setLastSavedHash] = useState(null);
 
   const { therapistId, userId } = location.state || {};
   const endRef = useRef(null);
 
-  const handleSend = () => {
+  // IPFS Chat hook
+  const { 
+    storeMessage, 
+    storeChatRoom, 
+    createChatLog, 
+    isStoring, 
+    error: ipfsError 
+  } = useIPFSChat(roomId);
+
+  const handleSend = async () => {
+    const messageData = {
+      message: input,
+      sender: "me",
+      time: new Date().toISOString(),
+      type: "chat",
+      userId,
+      therapistId,
+      roomId,
+    };
+
+    // Send via WebSocket first (for real-time communication)
     socket.send(
       JSON.stringify({
         type: "chat",
@@ -22,19 +44,67 @@ function ChatComponent() {
         therapistId,
         roomId,
         message: input,
-        time: new Date().toISOString(),
+        time: messageData.time,
       })
     );
 
-    const msg = {
-      message: input,
-      sender: "me",
-      time: new Date().toISOString(),
-      type: "chat",
-    };
-
-    setMessages((prev) => [...prev, msg]);
+    // Update local state immediately
+    setMessages((prev) => [...prev, messageData]);
     setInput("");
+
+    // Store to IPFS in background
+    try {
+      const ipfsHash = await storeMessage(messageData);
+      console.log(`📦 Message stored to IPFS: ${ipfsHash}`);
+      
+      // Optionally update the message with IPFS hash
+      setMessages((prev) => 
+        prev.map((msg, index) => 
+          index === prev.length - 1 
+            ? { ...msg, ipfsHash } 
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error("Failed to store message to IPFS:", error);
+      // Message is still sent via WebSocket, IPFS is just backup
+    }
+  };
+
+  // Save entire chat session to IPFS
+  const saveChatSession = async () => {
+    if (messages.length === 0) return;
+    
+    try {
+      const ipfsHash = await storeChatRoom(messages);
+      setLastSavedHash(ipfsHash);
+      console.log(`💾 Chat session saved to IPFS: ${ipfsHash}`);
+      
+      // Store hash in localStorage for later retrieval
+      localStorage.setItem(`chat-session-${roomId}`, ipfsHash);
+    } catch (error) {
+      console.error("Failed to save chat session:", error);
+    }
+  };
+
+  // Create permanent chat log
+  const createPermanentLog = async () => {
+    if (messages.length === 0) return;
+    
+    try {
+      const ipfsHash = await createChatLog(messages);
+      console.log(`📚 Permanent chat log created: ${ipfsHash}`);
+      
+      // Store in localStorage with timestamp
+      const logData = {
+        hash: ipfsHash,
+        timestamp: new Date().toISOString(),
+        messageCount: messages.length,
+      };
+      localStorage.setItem(`chat-log-${roomId}-${Date.now()}`, JSON.stringify(logData));
+    } catch (error) {
+      console.error("Failed to create permanent log:", error);
+    }
   };
 
   // Auto scroll
@@ -42,8 +112,69 @@ function ChatComponent() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-save to IPFS every 10 messages
+  useEffect(() => {
+    if (messages.length > 0 && messages.length % 10 === 0) {
+      saveChatSession();
+    }
+  }, [messages.length]);
+
+  // Save on component unmount (when user leaves chat)
+  useEffect(() => {
+    return () => {
+      if (messages.length > 0) {
+        saveChatSession();
+      }
+    };
+  }, [messages]);
+
   return (
     <div className="flex flex-col max-w-2xl mx-auto h-full">
+      {/* Header with IPFS status */}
+      <div className="flex-shrink-0 px-4 py-2">
+        <div className="flex items-center justify-between bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-white/70 text-sm">Chat Room: {roomId}</span>
+            {isStoring && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                <span className="text-yellow-400 text-xs">Storing to IPFS...</span>
+              </div>
+            )}
+            {lastSavedHash && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-green-400 text-xs">Saved to IPFS</span>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={saveChatSession}
+              disabled={isStoring || messages.length === 0}
+              className="px-3 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition disabled:opacity-50"
+            >
+              💾 Save
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={createPermanentLog}
+              disabled={isStoring || messages.length === 0}
+              className="px-3 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition disabled:opacity-50"
+            >
+              📚 Archive
+            </motion.button>
+          </div>
+        </div>
+        {ipfsError && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-2 mb-2">
+            <span className="text-red-300 text-xs">⚠️ IPFS Error: {ipfsError}</span>
+          </div>
+        )}
+      </div>
       {/* Messages Container */}
       <div className="flex-1 flex flex-col min-h-0 px-4">
         <div
@@ -71,6 +202,12 @@ function ChatComponent() {
                 >
                   <p className="text-xs opacity-70 font-semibold">{m.sender}</p>
                   <p className="text-base">{m.message}</p>
+                  {m.ipfsHash && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                      <span className="text-xs opacity-50">Stored on IPFS</span>
+                    </div>
+                  )}
                 </motion.div>
               ))}
               <div ref={endRef} />
