@@ -1,46 +1,32 @@
-import { useAccount } from "wagmi";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from "react-router";
+import { useAccount } from "wagmi";
 import "./App.css";
-import ConnectButton from "./ui/ConnectButton";
-import ConnectedAddress from "./ui/ConnectedAddress";
 
 function App() {
-  const { address, isConnected } = useAccount();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const { isConnected } = useAccount(); // 👈 check wallet connection
+
+  useEffect(() => {
+    if (isConnected) {
+      navigate("/therapists", { replace: true });
+    }
+  }, [isConnected, navigate]);
+
+  const handleRegister = async (role) => {
+    navigate("/therapists");
+  };
 
   const therapyOptions = [
-    { title: "User", description: "Register as User" },
-    { title: "Therapist", description: "Register as Therapist" },
+    { title: "User", description: "Register as User", role: "User" },
+    { title: "Therapist", description: "Register as Therapist", role: "Therapist" },
   ];
 
   return (
     <div className="min-h-screen">
-      {/* Navbar */}
-      <nav className="glass-navbar w-full px-6 py-4 shadow-lg">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h1
-              className="text-3xl font-bold"
-              style={{ color: "var(--color-primary)" }}
-            >
-              Theramine
-            </h1>
-            <span className="hidden md:block text-sm pl-4 ml-4 border-l border-white/20 text-white/60">
-              Blockchain Therapy Platform
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {!isConnected ? (
-              <ConnectButton />
-            ) : (
-              <ConnectedAddress address={address} />
-            )}
-          </div>
-        </div>
-      </nav>
-
       <main className="container mx-auto px-4 py-12">
         <motion.button
           onClick={() => setIsOpen((prev) => !prev)}
@@ -66,6 +52,7 @@ function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.3 }}
                   className="bg-accent/30 border border-primary/20 rounded-xl p-6 hover:transform hover:scale-105 transition-transform cursor-pointer"
+                  onClick={() => handleRegister(option.role)}
                 >
                   <h3 className="text-2xl font-semibold text-primary mb-4">
                     {option.title}

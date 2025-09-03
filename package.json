@@ -10,14 +10,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/themes": "^3.2.1",
+    "@semaphore-protocol/data": "^4.13.0-beta.1",
+    "@semaphore-protocol/group": "^4.13.0-beta.1",
+    "@semaphore-protocol/identity": "^4.13.0-beta.1",
+    "@semaphore-protocol/proof": "^4.13.0-beta.1",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.83.0",
     "motion": "^12.23.9",
+    "pinata-web3": "^0.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router": "^7.7.1",
+    "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.11",
     "viem": "^2.33.1",
-    "wagmi": "^2.16.0"
+    "wagmi": "^2.16.0",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
