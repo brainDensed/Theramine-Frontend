@@ -3,6 +3,7 @@ import App from '../App';
 import PrivateRoute from '../components/PrivateRoute';
 import Therapists from '../ui/Therapists';
 import ChatComponent from '../components/ChatRoom';
+import ChatHistory from '../components/ChatHistory';
 import Layout from '../ui/Layout';
 
 export const router = createBrowserRouter([
@@ -12,6 +13,7 @@ export const router = createBrowserRouter([
       { path: "/", element: <App /> },
       { path: "/therapists", element: <PrivateRoute><Therapists /></PrivateRoute> },
       { path: "/chat/:roomId", element: <PrivateRoute><ChatComponent /></PrivateRoute> },
+      { path: "/chat-history", element: <PrivateRoute><ChatHistory /></PrivateRoute> },
     ],
   },
 ]);

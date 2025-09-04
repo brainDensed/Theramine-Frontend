@@ -1,6 +1,7 @@
 import { useSocket } from "../context/SocketContext";
 import { Dialog, DialogContent, DialogTitle } from "@radix-ui/react-dialog";
 import { useNavigate } from "react-router";
+import ipfsChatService from "../services/ipfsService";
 
 const SessionRequestPopup = () => {
   const { socket, pendingRequest, setPendingRequest } = useSocket();
@@ -11,9 +12,10 @@ const SessionRequestPopup = () => {
   const handleResponse = (accepted) => {
     if (!socket || !pendingRequest) return;
 
-    const roomId = `${pendingRequest.userId}_${
-      pendingRequest.therapistId
-    }_${Date.now()}`;
+    const persistentRoomId = ipfsChatService.generateRoomId(
+      pendingRequest.userId || "user",
+      pendingRequest.therapistId || "therapist"
+    );
 
     if (accepted) {
       socket.send(
@@ -21,11 +23,11 @@ const SessionRequestPopup = () => {
           type: "appoinment_fixed",
           userId: pendingRequest.userId,
           therapistId: pendingRequest.therapistId,
-          roomId,
+          roomId: persistentRoomId,
           time: new Date().toISOString(),
         })
       );
-      navigate(`/chat/${roomId}`, {
+      navigate(`/chat/${persistentRoomId}`, {
         state: {
           therapistId: pendingRequest.therapistId,
           userId: pendingRequest.userId,

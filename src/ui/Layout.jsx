@@ -1,16 +1,18 @@
-import { Outlet, useNavigate, useLocation } from "react-router";
+import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import ConnectButton from "./ConnectButton";
 import { useSocket } from "../context/SocketContext";
 import SessionRequestPopup from "./SessionRequestPopup";
 import { useEffect } from "react";
+import { motion } from "framer-motion";
 
 export default function Layout() {
   const { acceptedRequest } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if current route is a chat route
+  // Check if current route is a chat route or chat history route
   const isChatRoute = location.pathname.startsWith("/chat/");
+  const isChatHistoryRoute = location.pathname === "/chat-history";
 
   useEffect(() => {
     if (acceptedRequest) {
@@ -43,7 +45,23 @@ export default function Layout() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-4">
+              <Link 
+                to="/therapists" 
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                👩‍⚕️ Therapists
+              </Link>
+              <Link 
+                to="/chat-history" 
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                📚 Chat History
+              </Link>
+            </div>
+            
             <ConnectButton />
           </div>
         </div>
@@ -51,7 +69,7 @@ export default function Layout() {
 
       <main
         className={`${
-          isChatRoute
+          isChatRoute || isChatHistoryRoute
             ? "pt-20 h-[calc(100vh-80px)]"
             : "container mx-auto px-4 py-12 pt-32"
         }`}
