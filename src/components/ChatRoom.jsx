@@ -58,7 +58,7 @@ function ChatComponent() {
 
     const messageData = {
       message: input,
-      sender: "me",
+      sender: address,
       timestamp: new Date().toISOString(),
       type: "chat",
       userId: userId || address || "user",
@@ -182,11 +182,11 @@ function ChatComponent() {
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}
+              className={`flex ${msg.sender === address ? "justify-end" : "justify-start"}`}
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
-                  msg.sender === "me"
+                  msg.sender === address
                     ? "bg-[var(--color-primary)] text-black"
                     : "bg-[var(--color-surface)] text-[var(--color-text)]"
                 }`}
