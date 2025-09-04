@@ -3,7 +3,7 @@ import { useAccount } from "wagmi";
 import { useSocket } from "../context/SocketContext";
 import { useLocation, useParams } from "react-router";
 import { motion } from "framer-motion";
-import { useIPFSChat } from "../hooks/useIPFSChat";
+import { ipfsChatService } from "../services/ipfsService";
 
 function ChatComponent() {
   const { address } = useAccount();
@@ -12,225 +12,212 @@ function ChatComponent() {
   const location = useLocation();
   const [input, setInput] = useState("");
   const [lastSavedHash, setLastSavedHash] = useState(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { therapistId, userId } = location.state || {};
   const endRef = useRef(null);
 
-  // IPFS Chat hook
-  const { 
-    storeMessage, 
-    storeChatRoom, 
-    createChatLog, 
-    isStoring, 
-    error: ipfsError 
-  } = useIPFSChat(roomId);
+  // Generate persistent room ID for this user-therapist pair
+  const persistentRoomId = ipfsChatService.generateRoomId(
+    userId || address || "user", 
+    therapistId || "therapist"
+  );
 
-  const handleSend = async () => {
-    const messageData = {
-      message: input,
-      sender: "me",
-      time: new Date().toISOString(),
-      type: "chat",
-      userId,
-      therapistId,
-      roomId,
-    };
+  // Load existing chat history when component mounts
+  useEffect(() => {
+    loadChatHistory();
+  }, [persistentRoomId]);
 
-    // Send via WebSocket first (for real-time communication)
-    socket.send(
-      JSON.stringify({
-        type: "chat",
-        userId,
-        therapistId,
-        roomId,
-        message: input,
-        time: messageData.time,
-      })
-    );
-
-    // Update local state immediately
-    setMessages((prev) => [...prev, messageData]);
-    setInput("");
-
-    // Store to IPFS in background
-    try {
-      const ipfsHash = await storeMessage(messageData);
-      console.log(`📦 Message stored to IPFS: ${ipfsHash}`);
-      
-      // Optionally update the message with IPFS hash
-      setMessages((prev) => 
-        prev.map((msg, index) => 
-          index === prev.length - 1 
-            ? { ...msg, ipfsHash } 
-            : msg
-        )
-      );
-    } catch (error) {
-      console.error("Failed to store message to IPFS:", error);
-      // Message is still sent via WebSocket, IPFS is just backup
-    }
-  };
-
-  // Save entire chat session to IPFS
-  const saveChatSession = async () => {
-    if (messages.length === 0) return;
-    
-    try {
-      const ipfsHash = await storeChatRoom(messages);
-      setLastSavedHash(ipfsHash);
-      console.log(`💾 Chat session saved to IPFS: ${ipfsHash}`);
-      
-      // Store hash in localStorage for later retrieval
-      localStorage.setItem(`chat-session-${roomId}`, ipfsHash);
-    } catch (error) {
-      console.error("Failed to save chat session:", error);
-    }
-  };
-
-  // Create permanent chat log
-  const createPermanentLog = async () => {
-    if (messages.length === 0) return;
-    
-    try {
-      const ipfsHash = await createChatLog(messages);
-      console.log(`📚 Permanent chat log created: ${ipfsHash}`);
-      
-      // Store in localStorage with timestamp
-      const logData = {
-        hash: ipfsHash,
-        timestamp: new Date().toISOString(),
-        messageCount: messages.length,
-      };
-      localStorage.setItem(`chat-log-${roomId}-${Date.now()}`, JSON.stringify(logData));
-    } catch (error) {
-      console.error("Failed to create permanent log:", error);
-    }
-  };
-
-  // Auto scroll
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-save to IPFS every 10 messages
-  useEffect(() => {
-    if (messages.length > 0 && messages.length % 10 === 0) {
-      saveChatSession();
-    }
-  }, [messages.length]);
-
-  // Save on component unmount (when user leaves chat)
-  useEffect(() => {
-    return () => {
-      if (messages.length > 0) {
-        saveChatSession();
+  const loadChatHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      console.log("📚 Loading chat history for room:", persistentRoomId);
+      
+      const chatHistory = await ipfsChatService.getChatRoom(persistentRoomId);
+      
+      if (chatHistory && chatHistory.messages) {
+        console.log(`✅ Loaded ${chatHistory.messages.length} messages from history`);
+        setMessages(chatHistory.messages);
       }
+    } catch (error) {
+      console.log("ℹ️ No existing chat history found, starting fresh");
+      setMessages([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const messageData = {
+      message: input,
+      sender: "me",
+      timestamp: new Date().toISOString(),
+      type: "chat",
+      userId: userId || address || "user",
+      therapistId: therapistId || "therapist",
     };
-  }, [messages]);
+
+    // Add message to local state immediately
+    const newMessages = [...messages, messageData];
+    setMessages(newMessages);
+    setInput("");
+
+    try {
+      setIsSaving(true);
+
+      // Send via WebSocket for real-time communication
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "chat",
+          ...messageData,
+          roomId: persistentRoomId,
+        }));
+      }
+
+      // Store to IPFS with updated message list
+      const ipfsHash = await ipfsChatService.addMessageToRoom(
+        persistentRoomId,
+        messageData,
+        {
+          userInfo: { id: userId || address || "user" },
+          therapistInfo: { id: therapistId || "therapist" },
+        }
+      );
+
+      setLastSavedHash(ipfsHash);
+      console.log("💾 Message saved to IPFS:", ipfsHash);
+
+    } catch (error) {
+      console.error("❌ Error saving message:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveCurrentSession = async () => {
+    if (messages.length === 0) return;
+
+    try {
+      setIsSaving(true);
+      const ipfsHash = await ipfsChatService.storeChatRoom(
+        persistentRoomId,
+        messages,
+        {
+          userInfo: { id: userId || address || "user" },
+          therapistInfo: { id: therapistId || "therapist" },
+        }
+      );
+      setLastSavedHash(ipfsHash);
+      console.log("💾 Session manually saved to IPFS:", ipfsHash);
+    } catch (error) {
+      console.error("❌ Error saving session:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoadingHistory) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
+          <p>Loading chat history...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col max-w-2xl mx-auto h-full">
-      {/* Header with IPFS status */}
-      <div className="flex-shrink-0 px-4 py-2">
-        <div className="flex items-center justify-between bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3 mb-2">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-[var(--color-background)] to-[var(--color-background-secondary)]">
+      {/* Header */}
+      <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-[var(--color-text)]">
+              Chat with {therapistId || "Therapist"}
+            </h1>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Room: {persistentRoomId}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
-            <span className="text-white/70 text-sm">Chat Room: {roomId}</span>
-            {isStoring && (
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                <span className="text-yellow-400 text-xs">Storing to IPFS...</span>
-              </div>
-            )}
             {lastSavedHash && (
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-green-400 text-xs">Saved to IPFS</span>
+              <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                ✅ Saved to IPFS
               </div>
             )}
-          </div>
-          <div className="flex gap-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={saveChatSession}
-              disabled={isStoring || messages.length === 0}
-              className="px-3 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition disabled:opacity-50"
+            {isSaving && (
+              <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                💾 Saving...
+              </div>
+            )}
+            <button
+              onClick={saveCurrentSession}
+              disabled={isSaving || messages.length === 0}
+              className="px-3 py-1 text-xs bg-[var(--color-primary)] text-black rounded hover:opacity-80 disabled:opacity-50"
             >
-              💾 Save
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={createPermanentLog}
-              disabled={isStoring || messages.length === 0}
-              className="px-3 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition disabled:opacity-50"
-            >
-              📚 Archive
-            </motion.button>
+              Save Session
+            </button>
           </div>
-        </div>
-        {ipfsError && (
-          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-2 mb-2">
-            <span className="text-red-300 text-xs">⚠️ IPFS Error: {ipfsError}</span>
-          </div>
-        )}
-      </div>
-      {/* Messages Container */}
-      <div className="flex-1 flex flex-col min-h-0 px-4">
-        <div
-          className={`flex-1 px-3 space-y-3 ${
-            messages.length > 0
-              ? "overflow-y-auto"
-              : "flex items-center justify-center"
-          }`}
-        >
-          {messages.length === 0 ? (
-            <p className="text-white/50 italic">No messages yet...</p>
-          ) : (
-            <div className="py-4">
-              {messages.map((m, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`max-w-[75%] px-4 py-2 rounded-2xl shadow-md backdrop-blur-md mb-3 ${
-                    m.sender === "me"
-                      ? "ml-auto bg-[var(--color-accent)] text-black"
-                      : "mr-auto bg-[var(--color-secondary)] text-black"
-                  }`}
-                >
-                  <p className="text-xs opacity-70 font-semibold">{m.sender}</p>
-                  <p className="text-base">{m.message}</p>
-                  {m.ipfsHash && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                      <span className="text-xs opacity-50">Stored on IPFS</span>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-              <div ref={endRef} />
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Input bar */}
-      <div className="flex-shrink-0 px-4 pb-4">
-        <div className="flex items-center gap-2 p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg mb-2">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="text-center text-[var(--color-text-secondary)] mt-8">
+            <p>No messages yet. Start the conversation!</p>
+          </div>
+        ) : (
+          messages.map((msg, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
+                  msg.sender === "me"
+                    ? "bg-[var(--color-primary)] text-black"
+                    : "bg-[var(--color-surface)] text-[var(--color-text)]"
+                }`}
+              >
+                <p className="text-sm">{msg.message}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {new Date(msg.timestamp || msg.time).toLocaleTimeString()}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {/* Input */}
+      <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm">
+        <div className="flex gap-2">
           <input
-            className="flex-1 px-4 py-2 rounded-xl bg-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            type="text"
             value={input}
-            placeholder="Type a message..."
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onKeyPress={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Type your message..."
+            className="flex-1 px-4 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isSaving}
             className="px-5 py-2 rounded-xl bg-[var(--color-primary)] text-black font-semibold shadow-lg hover:shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send

@@ -12,91 +12,59 @@ class IPFSChatService {
   }
 
   /**
-   * Store a chat message to IPFS
-   * @param {Object} messageData - The message data to store
-   * @returns {Promise<string>} - Returns the IPFS hash
+   * Generate a unique room ID for user-therapist pair
+   * @param {string} userId - User ID
+   * @param {string} therapistId - Therapist ID
+   * @returns {string} - Unique room ID
    */
-  async storeMessage(messageData) {
-    try {
-      const messageWithMetadata = {
-        ...messageData,
-        timestamp: new Date().toISOString(),
-        id: crypto.randomUUID(),
-      };
-
-      const result = await pinata.upload.json(messageWithMetadata, {
-        metadata: {
-          name: `chat-message-${messageWithMetadata.id}`,
-          keyvalues: {
-            type: "chat-message",
-            roomId: messageData.roomId,
-            sender: messageData.sender,
-            timestamp: messageWithMetadata.timestamp,
-          },
-        },
-      });
-
-      // Cache the message locally
-      this.chatCache.set(result.IpfsHash, messageWithMetadata);
-      
-      console.log("✅ Message stored to IPFS:", result.IpfsHash);
-      return result.IpfsHash;
-    } catch (error) {
-      console.error("❌ Error storing message to IPFS:", error);
-      throw error;
-    }
+  generateRoomId(userId, therapistId) {
+    return `room_${userId}_${therapistId}`;
   }
 
   /**
-   * Retrieve a message from IPFS
-   * @param {string} ipfsHash - The IPFS hash of the message
-   * @returns {Promise<Object>} - Returns the message data
-   */
-  async getMessage(ipfsHash) {
-    try {
-      // Check cache first
-      if (this.chatCache.has(ipfsHash)) {
-        return this.chatCache.get(ipfsHash);
-      }
-
-      const data = await pinata.gateways.get(ipfsHash);
-      this.chatCache.set(ipfsHash, data);
-      
-      return data;
-    } catch (error) {
-      console.error("❌ Error retrieving message from IPFS:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Store chat room messages as a single file
+   * Store or update a complete chat room with all messages
    * @param {string} roomId - The room ID
-   * @param {Array} messages - Array of messages
-   * @returns {Promise<string>} - Returns the IPFS hash
+   * @param {Array} messages - Array of all messages in the room
+   * @param {Object} metadata - Additional metadata (userInfo, therapistInfo)
+   * @returns {Promise<string>} - Returns IPFS hash
    */
-  async storeChatRoom(roomId, messages) {
+  async storeChatRoom(roomId, messages, metadata = {}) {
     try {
       const chatRoomData = {
-        roomId,
-        messages,
+        roomId: roomId,
+        messages: messages || [],
+        messageCount: messages ? messages.length : 0,
         lastUpdated: new Date().toISOString(),
-        messageCount: messages.length,
+        createdAt: metadata.createdAt || new Date().toISOString(),
+        userInfo: metadata.userInfo || {},
+        therapistInfo: metadata.therapistInfo || {},
+        sessions: this.groupMessagesBySessions(messages || []),
+        ...metadata,
       };
 
       const result = await pinata.upload.json(chatRoomData, {
         metadata: {
           name: `chat-room-${roomId}`,
           keyvalues: {
-            type: "chat-room",
+            type: "chatroom",
             roomId: roomId,
-            messageCount: messages.length.toString(),
+            messageCount: chatRoomData.messageCount.toString(),
             lastUpdated: chatRoomData.lastUpdated,
+            userId: metadata.userInfo?.id || "unknown",
+            therapistId: metadata.therapistInfo?.id || "unknown",
           },
         },
       });
 
       console.log("✅ Chat room stored to IPFS:", result.IpfsHash);
+      
+      // Update cache
+      this.chatCache.set(roomId, {
+        hash: result.IpfsHash,
+        data: chatRoomData,
+        lastUpdated: chatRoomData.lastUpdated
+      });
+
       return result.IpfsHash;
     } catch (error) {
       console.error("❌ Error storing chat room to IPFS:", error);
@@ -105,83 +73,181 @@ class IPFSChatService {
   }
 
   /**
-   * Retrieve chat room messages
-   * @param {string} ipfsHash - The IPFS hash of the chat room
-   * @returns {Promise<Object>} - Returns the chat room data
+   * Group messages by sessions (by date)
+   * @param {Array} messages - Array of messages
+   * @returns {Array} - Array of session objects
    */
-  async getChatRoom(ipfsHash) {
-    try {
-      const data = await pinata.gateways.get(ipfsHash);
-      return data;
-    } catch (error) {
-      console.error("❌ Error retrieving chat room from IPFS:", error);
-      throw error;
-    }
+  groupMessagesBySessions(messages) {
+    const sessionMap = new Map();
+    
+    messages.forEach(message => {
+      const date = new Date(message.timestamp).toDateString();
+      if (!sessionMap.has(date)) {
+        sessionMap.set(date, {
+          date: date,
+          messages: [],
+          messageCount: 0,
+          startTime: message.timestamp,
+          endTime: message.timestamp
+        });
+      }
+      
+      const session = sessionMap.get(date);
+      session.messages.push(message);
+      session.messageCount++;
+      session.endTime = message.timestamp;
+    });
+
+    return Array.from(sessionMap.values()).sort((a, b) => 
+      new Date(a.startTime) - new Date(b.startTime)
+    );
   }
 
   /**
-   * List files by metadata (useful for finding chat rooms)
-   * @param {string} roomId - Optional room ID to filter by
-   * @returns {Promise<Array>} - Returns array of files
+   * List all chat rooms from IPFS
+   * @param {string} userId - Optional user ID to filter by
+   * @param {string} therapistId - Optional therapist ID to filter by
+   * @returns {Promise<Array>} - Returns array of chat room files
    */
-  async listChatFiles(roomId = null) {
+  async listChatFiles(userId = null, therapistId = null) {
     try {
-      const filters = {
-        keyvalues: {
-          type: "chat-room",
-        },
-      };
-
-      if (roomId) {
-        filters.keyvalues.roomId = roomId;
+      const files = await pinata.listFiles();
+      console.log("🔍 All IPFS files:", files);
+      
+      if (!files.files || !Array.isArray(files.files)) {
+        return [];
       }
 
-      const files = await pinata.listFiles(filters);
-      return files.files;
+      // Filter for chat room files
+      const chatFiles = files.files.filter(file => {
+        // Check if it's a chat room file
+        const isChatRoom = file.metadata?.keyvalues?.type === "chatroom";
+        if (!isChatRoom) return false;
+
+        // If filtering by user/therapist, check those too
+        if (userId && file.metadata?.keyvalues?.userId !== userId) return false;
+        if (therapistId && file.metadata?.keyvalues?.therapistId !== therapistId) return false;
+
+        return true;
+      });
+
+      console.log("✅ Found chat room files:", chatFiles.length);
+      return chatFiles;
+
     } catch (error) {
       console.error("❌ Error listing chat files:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Retrieve a specific chat room by room ID
+   * @param {string} roomId - The room ID to retrieve
+   * @returns {Promise<Object>} - Returns the chat room data
+   */
+  async getChatRoom(roomId) {
+    try {
+      // Check cache first
+      const cached = this.chatCache.get(roomId);
+      if (cached) {
+        console.log("📋 Retrieved from cache:", roomId);
+        return cached.data;
+      }
+
+      // Get all files and find the one with matching roomId
+      const files = await this.listChatFiles();
+      const roomFile = files.find(file => 
+        file.metadata?.keyvalues?.roomId === roomId
+      );
+
+      if (!roomFile) {
+        throw new Error(`Chat room ${roomId} not found`);
+      }
+
+      // Retrieve the file content
+      const response = await fetch(`${import.meta.env.VITE_PINATA_GATEWAY}/ipfs/${roomFile.ipfs_pin_hash}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch chat room: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Update cache
+      this.chatCache.set(roomId, {
+        hash: roomFile.ipfs_pin_hash,
+        data: data,
+        lastUpdated: data.lastUpdated
+      });
+
+      console.log("✅ Retrieved chat room from IPFS:", roomId);
+      return data;
+
+    } catch (error) {
+      console.error("❌ Error retrieving chat room:", error);
       throw error;
     }
   }
 
   /**
-   * Create a persistent chat log for a room
+   * Add a new message to an existing chat room
    * @param {string} roomId - The room ID
-   * @param {Array} messages - Current messages in the room
-   * @returns {Promise<string>} - Returns the IPFS hash
+   * @param {Object} newMessage - The new message to add
+   * @param {Object} metadata - Room metadata (userInfo, therapistInfo)
+   * @returns {Promise<string>} - Returns new IPFS hash
    */
-  async createChatLog(roomId, messages) {
+  async addMessageToRoom(roomId, newMessage, metadata = {}) {
     try {
-      const chatLog = {
-        roomId,
-        messages: messages.map(msg => ({
-          ...msg,
-          ipfsHash: msg.ipfsHash || null, // Store individual message hashes if available
-        })),
-        createdAt: new Date().toISOString(),
-        totalMessages: messages.length,
+      let existingRoom;
+      
+      try {
+        // Try to get existing room
+        existingRoom = await this.getChatRoom(roomId);
+      } catch (error) {
+        // Room doesn't exist, create new one
+        console.log("📝 Creating new chat room:", roomId);
+        existingRoom = {
+          roomId: roomId,
+          messages: [],
+          createdAt: new Date().toISOString(),
+        };
+      }
+
+      // Add the new message
+      const messageWithTimestamp = {
+        ...newMessage,
+        timestamp: new Date().toISOString(),
+        id: crypto.randomUUID(),
       };
 
-      const result = await pinata.upload.json(chatLog, {
-        metadata: {
-          name: `chat-log-${roomId}-${Date.now()}`,
-          keyvalues: {
-            type: "chat-log",
-            roomId: roomId,
-            messageCount: messages.length.toString(),
-            createdAt: chatLog.createdAt,
-          },
-        },
+      const updatedMessages = [...(existingRoom.messages || []), messageWithTimestamp];
+
+      // Store the updated room
+      return await this.storeChatRoom(roomId, updatedMessages, {
+        ...metadata,
+        createdAt: existingRoom.createdAt,
       });
 
-      return result.IpfsHash;
     } catch (error) {
-      console.error("❌ Error creating chat log:", error);
+      console.error("❌ Error adding message to room:", error);
       throw error;
     }
+  }
+
+  /**
+   * Get chat history for a specific user-therapist pair
+   * @param {string} userId - User ID
+   * @param {string} therapistId - Therapist ID
+   * @returns {Promise<Object>} - Returns the chat room data
+   */
+  async getChatHistory(userId, therapistId) {
+    const roomId = this.generateRoomId(userId, therapistId);
+    return await this.getChatRoom(roomId);
   }
 }
 
-// Export singleton instance
-export const ipfsChatService = new IPFSChatService();
+// Create singleton instance
+const ipfsChatService = new IPFSChatService();
+
+// Export both named and default
+export { ipfsChatService };
 export default ipfsChatService;
