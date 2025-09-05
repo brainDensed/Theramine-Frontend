@@ -3,7 +3,6 @@ import ConnectButton from "./ConnectButton";
 import { useSocket } from "../context/SocketContext";
 import SessionRequestPopup from "./SessionRequestPopup";
 import { useEffect } from "react";
-import { motion } from "framer-motion";
 
 export default function Layout() {
   const { acceptedRequest } = useSocket();
@@ -34,12 +33,12 @@ export default function Layout() {
       >
         <div className="container mx-auto flex items-center justify-between h-full">
           <div className="flex items-center space-x-2">
-            <h1
-              className="text-3xl font-bold"
-              style={{ color: "var(--color-primary)" }}
-            >
-              Theramine
-            </h1>
+            <img
+              src="theramine.png"
+              alt="Theramine Logo"
+              className="h-20 w-auto cursor-pointer"
+              onClick={() => navigate("/")}
+            />
             <span className="hidden md:block text-sm pl-4 ml-4 border-l border-white/20 text-white/60">
               Blockchain Therapy Platform
             </span>
@@ -48,20 +47,20 @@ export default function Layout() {
           <div className="flex items-center space-x-6">
             {/* Navigation Links */}
             <div className="hidden md:flex items-center space-x-4">
-              <Link 
-                to="/therapists" 
+              <Link
+                to="/therapists"
                 className="text-white/70 hover:text-white transition-colors"
               >
                 👩‍⚕️ Therapists
               </Link>
-              <Link 
-                to="/chat-history" 
+              <Link
+                to="/chat-history"
                 className="text-white/70 hover:text-white transition-colors"
               >
                 📚 Chat History
               </Link>
             </div>
-            
+
             <ConnectButton />
           </div>
         </div>
