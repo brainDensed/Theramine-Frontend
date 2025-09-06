@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import PhoneVerification from "./components/PhoneVerification";
+import { usePhoneAuth } from "./context/PhoneAuthContext";
 import { AnimatePresence, motion } from "motion/react";
 import { useNavigate } from "react-router";
 import { useAccount } from "wagmi";
@@ -7,8 +9,8 @@ import "./App.css";
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-
-  const { isConnected } = useAccount(); // 👈 check wallet connection
+  const { isConnected } = useAccount();
+  const { isPhoneVerified, verify } = usePhoneAuth();
 
   useEffect(() => {
     if (isConnected) {
@@ -17,13 +19,23 @@ function App() {
   }, [isConnected, navigate]);
 
   const handleRegister = async (role) => {
-    navigate("/therapists");
+    if (role === "User") {
+      setIsOpen(false);
+      // Show phone verification modal or inline
+    } else {
+      navigate("/therapists");
+    }
   };
 
   const therapyOptions = [
     { title: "User", description: "Register as User", role: "User" },
     { title: "Therapist", description: "Register as Therapist", role: "Therapist" },
   ];
+
+  // If registering as user and not verified, show phone verification
+  if (isOpen && !isPhoneVerified) {
+    return <PhoneVerification onVerified={verify} />;
+  }
 
   return (
     <div className="min-h-screen">
