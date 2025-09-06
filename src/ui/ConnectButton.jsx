@@ -7,7 +7,7 @@ function ConnectButton() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isLoading, error } = useConnect();
   const { disconnect } = useDisconnect();
-  const { socket } = useSocket(); // 👈 socket is already managed in context
+  const { socket, userDID } = useSocket(); // 👈 socket is already managed in context
 
   const injectedConnector = connectors.find((c) => c.id === "injected");
 
@@ -41,6 +41,11 @@ function ConnectButton() {
           >
             {address?.slice(0, 6)}...{address?.slice(-4)}
           </div>
+          {userDID && (
+            <div className="ml-4 px-3 py-1 bg-gray-100 rounded text-xs text-gray-700 border border-gray-300">
+              DID: {userDID}
+            </div>
+          )}
         </div>
       ) : (
         <>

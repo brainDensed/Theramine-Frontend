@@ -1,14 +1,17 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useAccount } from "wagmi";
 
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { usePhoneAuth } from "./PhoneAuthContext";
+import { useAccount } from "wagmi";
 const SocketContext = createContext();
 
 function SocketProvider({ children }) {
   const { address } = useAccount();
+  const { isPhoneVerified, idToken, phoneNumber } = usePhoneAuth();
   const [socket, setSocket] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
   const [acceptedRequest, setAcceptedRequest] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [userDID, setUserDID] = useState(null);
 
   useEffect(() => {
     if (!address) return;
@@ -17,11 +20,40 @@ function SocketProvider({ children }) {
 
     ws.onopen = () => {
       console.log("✅ WebSocket connected");
+      // Send connection message with walletAddress, userId, idToken if available
+      if (isPhoneVerified && idToken && phoneNumber) {
+        ws.send(
+          JSON.stringify({
+            type: "connection",
+            userId: phoneNumber,
+            idToken,
+            walletAddress: address,
+            time: Date.now(),
+          })
+        );
+      } else {
+        // Fallback: therapist or not phone verified
+        ws.send(
+          JSON.stringify({
+            type: "connection",
+            therapistId: address,
+            time: Date.now(),
+          })
+        );
+      }
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log("📩 Incoming:", data);
+
+      // DID registration response (new or already registered)
+      if (
+        data.did &&
+        (data.status === "DID registered" || data.status === "DID already registered")
+      ) {
+        setUserDID(data.did);
+      }
 
       // appointment request
       if (
@@ -64,7 +96,7 @@ function SocketProvider({ children }) {
     return () => {
       ws.close();
     };
-  }, [address]);
+  }, [address, isPhoneVerified, idToken, phoneNumber]);
 
   return (
     <SocketContext.Provider
@@ -75,6 +107,7 @@ function SocketProvider({ children }) {
         acceptedRequest,
         messages,
         setMessages,
+        userDID,
       }}
     >
       {children}
