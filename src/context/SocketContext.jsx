@@ -16,7 +16,7 @@ function SocketProvider({ children }) {
   useEffect(() => {
     if (!address) return;
 
-    const ws = new WebSocket("ws://localhost:8080");
+    const ws = new WebSocket(import.meta.env.VITE_WEBSOCKET_URL);
 
     ws.onopen = () => {
       console.log("✅ WebSocket connected");
