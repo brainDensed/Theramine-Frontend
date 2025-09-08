@@ -2,12 +2,14 @@ import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import ConnectButton from "./ConnectButton";
 import { useSocket } from "../context/SocketContext";
 import SessionRequestPopup from "./SessionRequestPopup";
+import { useNotification } from "../components/NotificationToast";
 import { useEffect } from "react";
 
 export default function Layout() {
   const { acceptedRequest } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
+  const { NotificationContainer } = useNotification();
 
   // Check if current route is a chat route or chat history route
   const isChatRoute = location.pathname.startsWith("/chat/");
@@ -23,7 +25,7 @@ export default function Layout() {
         },
       });
     }
-  }, [acceptedRequest]);
+  }, [acceptedRequest, navigate]);
 
   return (
     <div className="min-h-screen overflow-hidden">
@@ -77,6 +79,7 @@ export default function Layout() {
       </main>
 
       <SessionRequestPopup />
+      <NotificationContainer />
     </div>
   );
 }

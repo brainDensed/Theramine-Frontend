@@ -118,7 +118,7 @@ const ChatHistory = () => {
   });
 
   return (
-    <div className="flex flex-col max-w-7xl mx-auto h-screen p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className="flex flex-col max-w-7xl mx-auto min-h-[70vh] p-4">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}

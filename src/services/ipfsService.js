@@ -1,4 +1,5 @@
 import { PinataSDK } from "pinata-web3";
+import { generateRoomId } from "../utils/roomUtils.js";
 
 // Initialize Pinata SDK
 const pinata = new PinataSDK({
@@ -18,7 +19,7 @@ class IPFSChatService {
    * @returns {string} - Unique room ID
    */
   generateRoomId(userId, therapistId) {
-    return `room_${userId}_${therapistId}`;
+    return generateRoomId(userId, therapistId);
   }
 
   /**

@@ -13,30 +13,55 @@ function IPFSChatHistory({ roomId }) {
     loadStoredChats();
   }, [roomId]);
 
-  const loadStoredChats = () => {
-    // Load from localStorage
-    const stored = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith(`chat-session-${roomId}`) || key.startsWith(`chat-log-${roomId}`)) {
-        const value = localStorage.getItem(key);
-        try {
-          const data = key.startsWith('chat-log') ? JSON.parse(value) : { hash: value };
-          stored.push({
-            key,
-            type: key.startsWith('chat-log') ? 'log' : 'session',
-            ...data,
-          });
-        } catch (e) {
-          stored.push({
-            key,
-            type: key.startsWith('chat-log') ? 'log' : 'session',
-            hash: value,
-          });
+  const loadStoredChats = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load from localStorage first
+      const stored = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith(`chat-session-${roomId}`) || key.startsWith(`chat-log-${roomId}`)) {
+          const value = localStorage.getItem(key);
+          try {
+            const data = key.startsWith('chat-log') ? JSON.parse(value) : { hash: value };
+            stored.push({
+              key,
+              type: key.startsWith('chat-log') ? 'log' : 'session',
+              ...data,
+            });
+          } catch (e) {
+            stored.push({
+              key,
+              type: key.startsWith('chat-log') ? 'log' : 'session',
+              hash: value,
+            });
+          }
         }
       }
+
+      // Also load from IPFS if available
+      try {
+        const ipfsFiles = await listChatFiles();
+        const ipfsChats = ipfsFiles.map(file => ({
+          key: `ipfs-${file.ipfs_pin_hash}`,
+          type: 'ipfs',
+          hash: file.ipfs_pin_hash,
+          timestamp: file.date_pinned,
+          messageCount: file.metadata?.keyvalues?.messageCount || 0,
+          roomId: file.metadata?.keyvalues?.roomId
+        }));
+        stored.push(...ipfsChats);
+      } catch (ipfsError) {
+        console.log('No IPFS files found or error loading:', ipfsError.message);
+      }
+
+      setChatHistory(stored.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)));
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setChatHistory(stored.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)));
   };
 
   const loadChatFromIPFS = async (hash) => {

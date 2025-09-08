@@ -93,10 +93,22 @@ function ChatComponent() {
       );
 
       setLastSavedHash(ipfsHash);
-      console.log("💾 Message saved to IPFS:", ipfsHash);
+      
+      // Also save to localStorage as backup
+      localStorage.setItem(`chat-session-${persistentRoomId}`, ipfsHash);
+      localStorage.setItem(`chat-log-${persistentRoomId}`, JSON.stringify({
+        hash: ipfsHash,
+        timestamp: new Date().toISOString(),
+        messageCount: newMessages.length,
+        roomId: persistentRoomId
+      }));
+
+      console.log("💾 Message saved to IPFS and localStorage:", ipfsHash);
 
     } catch (error) {
       console.error("❌ Error saving message:", error);
+      // Fallback: save to localStorage only
+      localStorage.setItem(`chat-backup-${persistentRoomId}`, JSON.stringify(newMessages));
     } finally {
       setIsSaving(false);
     }
@@ -127,16 +139,17 @@ function ChatComponent() {
   if (isLoadingHistory) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
-          <p>Loading chat history...</p>
+        <div className="text-center bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white">Loading chat history...</p>
+          <p className="text-white/60 text-sm mt-2">Fetching messages from IPFS...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-[var(--color-background)] to-[var(--color-background-secondary)]">
+    <div className="h-screen flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm">
         <div className="flex items-center justify-between">

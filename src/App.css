@@ -5,24 +5,29 @@
   --color-primary: #a3c9f7;      /* pastel blue */
   --color-secondary: #f7d6e0;    /* pastel pink */
   --color-accent: #b8e0d2;       /* pastel mint */
-  --color-background: linear-gradient(135deg, #000514 30%, #00bed3 100%);
+  --color-background: #0f0f23;   /* dark blue base */
+  --color-background-secondary: #1a1a2e; /* slightly lighter */
   --color-text: #ffffff;
   --color-error: #f7a3a3;
+  --gradient-primary: linear-gradient(135deg, #0f0f23 0%, #16213e 50%, #0f3460 100%);
 }
 
 /* Reset */
 body {
-  background: var(--color-background);
+  background: var(--gradient-primary);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: 'Inter', sans-serif;
   margin: 0;
   padding: 0;
+  min-height: 100vh;
 }
 
 /* App root */
 #root {
   width: 100%;
   min-height: 100vh;
+  background: transparent;
 }
 
 /* Glassmorphism Navbar */
@@ -33,4 +38,26 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   z-index: 50;
+}
+
+/* Utility Classes */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+}
+
+.glass-button {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
 }

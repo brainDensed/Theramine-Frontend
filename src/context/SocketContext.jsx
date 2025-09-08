@@ -44,42 +44,63 @@ function SocketProvider({ children }) {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("📩 Incoming:", data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log("📩 Incoming:", data);
 
-      // DID registration response (new or already registered)
-      if (
-        data.did &&
-        (data.status === "DID registered" || data.status === "DID already registered")
-      ) {
-        setUserDID(data.did);
-      }
-
-      // appointment request
-      if (
-        data.message === "appoinment_request" &&
-        data.therapistId === address
-      ) {
-        setPendingRequest(data);
-      }
-
-      if (data.message === "appoinment_fixed") {
-        // Check if current user is either the therapist or user involved
-        if (address === data.therapistId || address === data.userId) {
-          setAcceptedRequest(data);
+        // Handle errors from server
+        if (data.error) {
+          console.error("❌ Server error:", data.error);
+          return;
         }
-      }
 
-      // chat message
-      if (data.type === "chat") {
-        const msg = {
-          message: data.message,
-          sender: data.userId !== address ? data.userId : data.therapistId,
-          time: data.time,
-          type: "chat",
-        };
+        // DID registration response (new or already registered)
+        if (
+          data.did &&
+          (data.status === "DID registered" || data.status === "DID already registered")
+        ) {
+          setUserDID(data.did);
+          console.log("✅ DID registered:", data.did);
+        }
 
-        setMessages((prev) => [...prev, msg]);
+        // appointment request
+        if (
+          data.message === "appoinment_request" &&
+          data.therapistId === address
+        ) {
+          setPendingRequest(data);
+          console.log("📞 Appointment request received");
+        }
+
+        if (data.message === "appoinment_fixed") {
+          // Check if current user is either the therapist or user involved
+          if (address === data.therapistId || address === data.userId) {
+            setAcceptedRequest(data);
+            console.log("✅ Appointment confirmed");
+          }
+        }
+
+        // chat message
+        if (data.type === "chat") {
+          const msg = {
+            message: data.message,
+            sender: data.sender || (data.userId !== address ? data.userId : data.therapistId),
+            timestamp: data.timestamp || new Date().toISOString(),
+            time: data.time || Date.now(),
+            type: "chat",
+          };
+
+          setMessages((prev) => [...prev, msg]);
+          console.log("💬 Chat message received");
+        }
+
+        // message delivery confirmation
+        if (data.type === "message_sent") {
+          console.log(`📤 Message ${data.status}:`, data.roomId);
+        }
+
+      } catch (error) {
+        console.error("❌ Error parsing WebSocket message:", error);
       }
     };
 
